@@ -321,3 +321,7 @@ If you encounter issues:
 ---
 
 *Built with ❤️ for learning systems programming and version control internals*
+
+## Note about Tree canonicalization change
+
+If you modify the C++ `Tree` type from `std::unordered_map` to `std::map` (so entries are iterated in sorted order), a few small follow-ups are required: update `libcaf/src/tree.h` to store a `std::map`, update `libcaf/src/object_io.cpp` to construct a `std::map` when loading trees, and update the pybind11 binding in `libcaf/src/bind.cpp` to accept `std::map<std::string, TreeRecord>` (or add an overload that converts from `std::unordered_map`). After making these changes you must rebuild/install the `libcaf` extension so Python imports the updated C++ types (e.g., `make deploy-libcaf` inside the container). This ensures tree serialization/hashing is canonical (sorted) and that Python tests depending on deterministic ordering pass.
