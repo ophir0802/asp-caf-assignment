@@ -11,7 +11,7 @@ from typing import Concatenate
 
 from . import Blob, Commit, Tree, TreeRecord, TreeRecordType
 from .constants import (DEFAULT_BRANCH, DEFAULT_REPO_DIR, HASH_CHARSET, HASH_LENGTH, HEADS_DIR, HEAD_FILE,
-                        OBJECTS_SUBDIR, REFS_DIR)
+                        OBJECTS_SUBDIR, REFS_DIR, TAGS_DIR)
 from .plumbing import hash_object, load_commit, load_tree, save_commit, save_file_content, save_tree
 from .ref import HashRef, Ref, RefError, SymRef, read_ref, write_ref
 
@@ -98,6 +98,8 @@ class Repository:
 
         heads_dir = self.heads_dir()
         heads_dir.mkdir(parents=True)
+        #create tags dir
+        self.tags_dir().mkdir(parents=True)
 
         self.add_branch(default_branch)
 
@@ -132,6 +134,11 @@ class Repository:
 
         :return: The path to the heads directory."""
         return self.refs_dir() / HEADS_DIR
+    def tags_dir(self) -> Path:
+        """Get the path to the heads directory within the repository.
+
+        :return: The path to the heads directory."""
+        return self.refs_dir() / TAGS_DIR
 
     @staticmethod
     def requires_repo[**P, R](func: Callable[Concatenate['Repository', P], R]) -> \
@@ -551,6 +558,67 @@ class Repository:
 
         :return: The path to the HEAD file."""
         return self.repo_path() / HEAD_FILE
+    ###
+    def create_tag(self, tag_name: str, ref: Ref | str) -> int:
+        if not tag_name:
+            msg = 'Tag name is required'
+            raise ValueError(msg)
+        if ref is None:
+            msg = 'Commit reference is required'
+            raise ValueError(msg)
+
+        # Normalize any input (HashRef, SymRef, "HEAD", branch name, raw hash string) to a HashRef
+        commit_ref = self.resolve_ref(ref)
+        if commit_ref is None:
+            msg = f'Cannot resolve reference "{ref}"'
+            raise RepositoryError(msg)
+
+        tags_dir = self.tags_dir()
+        tags_dir.mkdir(parents=True, exist_ok=True)
+
+        tag_path = tags_dir / tag_name
+        if tag_path.exists():
+            msg = f'Tag "{tag_name}" already exists'
+            raise RepositoryError(msg)
+
+        # Store the resolved HashRef in the tag file
+        write_ref(tag_path, commit_ref)
+        return 0
+        
+    def delete_tag(self, tag_name: str) -> None:
+        """Delete a tag from the repository.
+
+        :param tag_name: The name of the tag to delete.
+        :raises ValueError: If the tag name is empty.
+        :raises RepositoryError: If the tag does not exist.
+        :raises RepositoryNotFoundError: If the repository does not exist.
+        """
+        if not tag_name:
+            msg = 'Tag name is required'
+            raise ValueError(msg)
+
+        tag_path = self.tags_dir() / tag_name
+
+        if not tag_path.exists():
+            msg = f'Tag "{tag_name}" does not exist.'
+            raise RepositoryError(msg)
+        if not tag_path.is_file():
+            msg = f'Tag path is not a file: {tag_path}'
+            raise RepositoryError(msg)
+
+        tag_path.unlink()
+    def tags(self) -> list[str]:
+        """Get a list of all tag names in the repository.
+
+        :return: A list of tag names.
+        :raises RepositoryNotFoundError: If the repository does not exist.
+        """
+        tags_dir = self.tags_dir()
+        if not tags_dir.exists() or not tags_dir.is_dir():
+            return []
+
+        return [p.name for p in tags_dir.iterdir() if p.is_file()]
+
 
 
 def branch_ref(branch: str) -> SymRef:
@@ -559,3 +627,34 @@ def branch_ref(branch: str) -> SymRef:
     :param branch: The name of the branch.
     :return: A SymRef object representing the branch reference."""
     return SymRef(f'{HEADS_DIR}/{branch}')
+"""
+    def commit_working_dir(self, author: str, message: str) -> HashRef:
+        if not author:
+            msg = 'Author is required'
+            raise ValueError(msg)
+        if not message:
+            msg = 'Commit message is required'
+            raise ValueError(msg)
+
+        # See if HEAD is a symbolic reference to a branch that we need to update
+        # if the commit process is successful.
+        # Otherwise, there is nothing to update and HEAD will continue to point
+        # to the detached commit.
+        # Either way the commit HEAD eventually resolves to becomes the parent of the new commit.
+        head_ref = self.head_ref()
+        branch = head_ref if isinstance(head_ref, SymRef) else None
+        parent_commit_ref = self.head_commit()
+
+        # Save the current working directory as a tree
+        tree_hash = self.save_dir(self.working_dir)
+
+        commit = Commit(tree_hash, author, message, int(datetime.now().timestamp()), parent_commit_ref)
+        commit_ref = HashRef(hash_object(commit))
+
+        save_commit(self.objects_dir(), commit)
+
+        if branch:
+            self.update_ref(branch, commit_ref)
+
+        return commit_ref
+"""

@@ -275,3 +275,88 @@ def _print_diffs(diff_stack: MutableSequence[tuple[Sequence[Diff], int]]) -> Non
 
             if diff.children:
                 diff_stack.append((diff.children, indent + 3))
+#######################################
+"""
+def commit(**kwargs) -> int:
+    repo = _repo_from_cli_kwargs(kwargs)
+    author = kwargs.get('author')
+    message = kwargs.get('message')
+
+    if not author:
+        _print_error('Author name is required.')
+        return -1
+    if not message:
+        _print_error('Commit message is required.')
+        return -1
+
+    try:
+        commit_ref = repo.commit_working_dir(author, message)
+
+        _print_success(f'Commit created successfully:\n'
+                       f'Hash: {commit_ref}\n'
+                       f'Author: {author}\n'
+                       f'Message: {message}\n')
+        return 0
+    except RepositoryNotFoundError:
+        _print_error(f'No repository found at {repo.repo_path()}')
+        return -1
+    except RepositoryError as e:
+        _print_error(f'Repository error: {e}')
+        return -1
+
+"""
+def create_tag(**kwargs) -> int:
+    repo = _repo_from_cli_kwargs(kwargs)
+    tag_name = kwargs.get('tag name')
+    ref = kwargs.get('ref')
+
+    if not tag_name:
+        _print_error('Tag name is required.')
+        return -1
+    if not ref:
+        _print_error('ref is required blih.')
+        return -1
+
+    try:
+        repo.create_tag(tag_name, ref)
+        _print_success(f'Tag "{tag_name}" created with ref "{ref}".')
+        return 0
+    except RepositoryNotFoundError:
+        _print_error(f'No repository found at {repo.repo_path()}')
+        return -1
+    except RepositoryError as e:
+        _print_error(f'Repository error: {e}')
+        return -1
+def delete_tag(**kwargs) -> int:
+    repo = _repo_from_cli_kwargs(kwargs)
+    tag_name = kwargs.get('tag name')
+
+    if not tag_name:
+        _print_error('Tag name is required.')
+        return -1
+    try:
+        repo.delete_tag(tag_name)
+        _print_success(f'Tag "{tag_name}" deleted successfully.')
+        return 0
+    except RepositoryNotFoundError:
+        _print_error(f'No repository found at {repo.repo_path()}')
+        return -1
+    except RepositoryError as e:
+        _print_error(f'Repository error: {e}')
+        return -1
+    
+def tags(**kwargs) -> int:
+    repo = _repo_from_cli_kwargs(kwargs)
+    tag_names = repo.tags()
+
+    if not tag_names:
+        _print_success('No tags found.')
+        return 0
+
+    _print_success('Tags:')
+    for tag in tag_names:
+        print(tag)
+
+    return 0
+
+    
